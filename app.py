@@ -39,11 +39,6 @@ async def proxy(path: str, request: Request):
 
     if path.endswith("player_api.php"):
         r = await client.request(request.method, upstream_url, headers=headers, content=await request.body())
-        print(f"--- API REQUEST ---")
-        print(f"URL: {upstream_url}")
-        print(f"STATUS: {r.status_code}")
-        print(f"RESPONSE: {r.text[:100]}") # Print first 100 chars
-        
         try:
             data = r.json()
             if "user_info" in data:
@@ -51,9 +46,13 @@ async def proxy(path: str, request: Request):
                 data["user_info"]["status"] = "Active"
                 data["user_info"]["auth"] = 1
             return Response(content=json.dumps(data).encode(), status_code=200, media_type="application/json")
-        except Exception as e:
-            print(f"JSON PARSE ERROR: {e}")
-            pass 
+        except Exception:
+            # Dump the raw upstream error to the browser for diagnosis
+            return Response(
+                content=f"UPSTREAM REJECTED. Status: {r.status_code}\n\nBody: {r.text}", 
+                status_code=r.status_code, 
+                media_type="text/plain"
+            )
             
     if path.endswith("get.php") or path.endswith("xmltv.php"):
         r = await client.request(request.method, upstream_url, headers=headers)
